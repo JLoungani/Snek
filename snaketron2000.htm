@@ -1,0 +1,339 @@
+<canvas id="gc" width="900" height="900"></canvas>
+<script>
+TICK_RATE = 1000/30;
+KEY_DELAY = 1000/20;
+BOOST_COOLDOWN = 5 * 1000;
+
+NUM_SNAKES = 5;
+NUM_APPLES = NUM_SNAKES;
+//NUM_APPLES = 3;
+TC = NUM_SNAKES * 9;
+//TC = 45;
+GS = document.getElementById("gc").width / TC;
+//GS = 20;
+
+KEY_CODES = [NUM_SNAKES];
+KEY_CODES[0] = new Array(37, 38, 39, 40, 96);		//left		up			right		down		numpad 0
+KEY_CODES[1] = new Array(65, 87, 68, 83, 16);		//a 		w 			d			s			shift
+KEY_CODES[2] = new Array(100, 104, 102, 101, 107);	//numpad 4	numpad 8	numpad 6	numpad 5	add
+KEY_CODES[3] = new Array(76, 80, 222, 186, 13);		//l			p			'			;			enter
+KEY_CODES[4] = new Array(71, 89, 74, 72, 32);		//g			y			j			h			space
+	
+
+
+class Snake
+{
+	constructor(px, py)
+	{
+		this.ticker = 0;
+		this.isAlive = true;
+		
+		this.trail = [];
+		this.tail = 5;
+		
+		this.vx = this.vy = 1;
+		this.px = px;
+		this.py = py;
+	}
+	move()
+	{	
+		if (this.ticker < 1)
+		{
+			if (this.isAlive)
+			{
+				this.px += this.vx;
+				this.py += this.vy;
+			}
+			if(this.px < 0) 
+			{
+				this.px = TC-1;
+			}
+			if(this.px > TC-1) 
+			{
+				this.px = 0;
+			}
+			if(this.py < 0) 
+			{
+				this.py = TC-1;
+			}
+			if(this.py > TC-1) 
+			{
+				this.py = 0;
+			}
+			
+			for (var i = 0; i < this.trail.length; i++) 
+			{
+				if(this.trail[i].x == this.px && this.trail[i].y == this.py) 
+				{
+					this.vx = 0;
+					this.vy = 0;
+					this.isAlive = false;
+				}
+			}
+			this.trail.push({x:this.px,y:this.py});
+			while(this.trail.length>this.tail) 
+			{	
+				this.trail.shift();
+			}
+			this.ticker++;
+		}
+		else {this.ticker--;}
+		
+	}
+	checkCollision(eSnake)
+	{
+		var eTrail = eSnake.getTrail();		
+
+		if (this.px == eSnake.getPx() && this.py == eSnake.getPy())
+		{
+			this.vx = 0;
+			this.vy = 0;
+			this.isAlive = false;
+		}
+		
+		for (var i = 0; i < eTrail.length; i++)
+		{
+			if (this.px == eTrail[i].x && this.py == eTrail[i].y)
+			{
+				this.vx = 0;
+				this.vy = 0;
+				this.isAlive = false;
+			}
+		}
+	}
+	draw()
+	{	
+		for (var i = 0; i < this.trail.length; i++) 
+		{
+			ctx.fillRect(this.trail[i].x*GS, this.trail[i].y*GS, GS-2, GS-2);
+		}
+	}
+	grow()
+	{
+		this.tail++;
+	}
+	setVx(vx)
+	{
+		this.vx = vx;
+	}
+	setVy(vy)
+	{
+		this.vy = vy;
+	}
+	setPx(px)
+	{
+		this.px = px;
+	}
+	setPy(py)
+	{
+		this.py = py;
+	}
+	getPx()
+	{
+		return this.px;
+	}
+	getPy()
+	{
+		return this.py;
+	}	
+	getVx()
+	{
+		return this.vx;
+	}
+	getVy()
+	{
+		return this.vy;
+	}
+	getTrail()
+	{
+		return this.trail;
+	}
+}
+
+class Apple
+{
+	constructor(px, py)
+	{
+		this.px = px;
+		this.py = py;
+	}
+	draw()
+	{
+		ctx.fillRect(this.px*GS, this.py*GS, GS-2, GS-2)
+	}
+	checkOverlap(apple)
+	{
+		if (this.px == apple.getPx() && this.py == apple.getPy())
+		{
+			return true;
+		}
+		return false;
+	}
+	setPx(px)
+	{
+		this.px = px;
+	}
+	setPy(py)
+	{
+		this.py = py;
+	}
+	getPx()
+	{
+		return this.px;
+	}
+	getPy()
+	{
+		return this.py;
+	}
+}
+
+window.onload=function() 
+{
+	canv = document.getElementById("gc");
+	ctx = canv.getContext("2d");
+	document.addEventListener("keydown", keyPush);
+	
+
+	reset();
+	setInterval(game, TICK_RATE);
+}
+function reset()
+{
+	snakes = [NUM_SNAKES];
+	oldTimes = [NUM_SNAKES];
+	colors = [NUM_SNAKES];
+	
+	for (var i = 0; i < NUM_SNAKES; i++)
+	{
+		snakes[i] = new Snake((i+1) * TC/NUM_SNAKES, (i+1) * TC/NUM_SNAKES);
+		
+		oldTimes[i] = new Array();
+		for (var j = 0; j < 2; j++)
+		{
+			oldTimes[i][j] = Date.now();
+		}
+		
+		colors[i] = new Array();
+		for (var k = 0; k < 3; k++)
+		{
+			colors[i][k] = "hsl(" + (30 + i * 300 / NUM_SNAKES) + ", 100%, " + (35 + 20 * k) + "%)"; //snakes will not be red
+		}
+	}
+	
+	apples = [NUM_APPLES];
+	for (var i = 0; i < NUM_APPLES; i++)
+	{
+		apples[i] = new Apple(Math.floor(Math.random() * (TC-1)), Math.floor(Math.random() * (TC-1)));
+		for (var j = 0; j < i; j++)
+		{
+			if (apples[i].checkOverlap(apples[j]))
+			{
+				apples[i] = new Apple(Math.floor(Math.random() * (TC-1)), Math.floor(Math.random() * (TC-1)));
+			}
+		}
+	}
+}
+function game()
+{
+	ctx.fillStyle = "black";
+	ctx.fillRect(0, 0, TC * GS, TC * GS);
+	
+	ctx.fillStyle="red";
+	for (var i = 0; i < NUM_APPLES; i++)
+	{
+		apples[i].draw();
+	}
+
+	for (var i = 0; i < NUM_SNAKES; i++)
+	{		
+		snakes[i].move();
+		
+		colorUpdate(i);
+		snakes[i].draw();
+		
+		for (var j = 0; j < NUM_APPLES; j++)
+		{
+			if (snakes[i].getPx() == apples[j].getPx() && snakes[i].getPy() == apples[j].getPy())
+			{
+				snakes[i].grow(); 
+				apples[j] = new Apple(Math.floor(Math.random() * (TC-1)), Math.floor(Math.random() * (TC-1)));
+				for (var k = 0; k < NUM_APPLES; k++)
+				{
+					if (k != j && apples[j].checkOverlap(apples[k]))
+					{
+						apples[j] = new Apple(Math.floor(Math.random() * (TC-1)), Math.floor(Math.random() * (TC-1)));
+					}
+				}
+			}
+		}
+	}
+	for(var i = 0; i < NUM_SNAKES; i++)
+	{
+		for(var j = 0; j < NUM_SNAKES; j++)
+		{
+			if (i != j) {snakes[i].checkCollision(snakes[j])};
+		}
+	}
+}
+function colorUpdate(i)
+{
+	if (snakes[i].ticker < 0)
+	{
+		ctx.fillStyle = colors[i][2];
+	}
+	else if (Date.now() - oldTimes[i][1] < BOOST_COOLDOWN)
+	{
+		ctx.fillStyle = colors[i][0];
+	}
+	else
+	{
+		ctx.fillStyle = colors[i][1];
+	}
+}
+function keyPush(evt)
+{
+	for (var i = 0; i < NUM_SNAKES; i++)
+	{
+		newTime = Date.now();
+
+		switch(evt.keyCode)
+		{
+			case KEY_CODES[i][0]:
+				if (snakes[i].getVx() != 1 && newTime - oldTimes[i][0] > KEY_DELAY) 
+				{
+						snakes[i].setVx(-1); snakes[i].setVy(0);
+						oldTimes[i][0] = Date.now();
+				}
+				break;
+			case KEY_CODES[i][1]:
+				if (snakes[i].getVy() != 1 && newTime - oldTimes[i][0] > KEY_DELAY) 
+				{
+					snakes[i].setVx(0); snakes[i].setVy(-1);
+					oldTimes[i][0] = Date.now();
+				}
+				break;
+			case KEY_CODES[i][2]:
+				if (snakes[i].getVx() != -1 && newTime - oldTimes[i][0] > KEY_DELAY) 
+				{
+					snakes[i].setVx(1); snakes[i].setVy(0);
+					oldTimes[i][0] = Date.now();
+				}
+				break;
+			case KEY_CODES[i][3]:
+				if (snakes[i].getVy() != -1 && newTime - oldTimes[i][0] > KEY_DELAY) 
+				{
+					snakes[i].setVx(0); snakes[i].setVy(1);
+					oldTimes[i][0] = Date.now();
+				}
+				break;
+			case KEY_CODES[i][4]:
+				if (newTime - oldTimes[i][1] > BOOST_COOLDOWN) 
+				{
+					snakes[i].ticker = -20;
+					oldTimes[i][1] = Date.now();
+				}
+				break;
+		}
+	}
+}
+</script>
